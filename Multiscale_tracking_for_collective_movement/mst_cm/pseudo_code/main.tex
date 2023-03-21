@@ -1,0 +1,577 @@
+\documentclass{article}
+\usepackage{algorithm,algorithmic}
+\usepackage[utf8]{inputenc}
+
+% Traduction des commandes d'Algorithm
+\makeatletter
+\renewcommand{\ALG@name}{Algorihtme}
+\renewcommand{\algorithmicrequire}{\textbf{Prérequis:}}
+\renewcommand{\algorithmicensure}{\textbf{Ensure:}}
+\renewcommand{\algorithmicend}{\textbf{fin}}
+\renewcommand{\algorithmicif}{\textbf{si}}
+\renewcommand{\algorithmicthen}{\textbf{alors}}
+\renewcommand{\algorithmicelse}{\textbf{sinon}}
+\renewcommand{\algorithmicelsif}{\algorithmicelse\ \algorithmicif}
+\renewcommand{\algorithmicendif}{\algorithmicend\ \algorithmicif}
+\renewcommand{\algorithmicfor}{\textbf{pour}}
+\renewcommand{\algorithmicforall}{\textbf{pour tout}}
+\renewcommand{\algorithmicdo}{\textbf{faire}}
+\renewcommand{\algorithmicendfor}{\algorithmicend\ \algorithmicfor}
+\renewcommand{\algorithmicwhile}{\textbf{tant que}}
+\renewcommand{\algorithmicendwhile}{\algorithmicend\ \algorithmicwhile}
+\renewcommand{\algorithmicloop}{\textbf{boucle}}
+\renewcommand{\algorithmicendloop}{\algorithmicend\ \algorithmicloop}
+\renewcommand{\algorithmicrepeat}{\textbf{répéter}}
+\renewcommand{\algorithmicuntil}{\textbf{jusqu'à}}
+\renewcommand{\algorithmicprint}{\textbf{afficher}}
+\renewcommand{\algorithmicreturn}{\textbf{renvoyer}}
+\renewcommand{\algorithmictrue}{\textbf{vrai}}
+\renewcommand{\algorithmicfalse}{\textbf{faux}}
+\renewcommand{\algorithmiccomment}[1]{// #1}
+
+
+\addtolength{\oddsidemargin}{-.875in}
+\addtolength{\evensidemargin}{-.875in}
+\addtolength{\textwidth}{1.75in}
+\addtolength{\topmargin}{-.875in}
+\addtolength{\textheight}{1.75in}
+
+\title{Algorithmes PAF}
+\author{Romain Darous, Louis Martinez, Lucas Thomasset, Arthur Toulouse}
+
+\begin{document}
+
+\maketitle
+
+\section{Arbres quaternaires}
+
+Pour implémenter le comportement des boids, ceux-ci ont besoin de connaître leurs voisins.
+Cependant cela nécessite à priori d’itérer sur tous les boids présents et ne retenir que ceux qui sont en dessous
+d’une distance seuil. Les arbres quaternaires permettent de réduire le nombre d’itérations
+pour trouver les voisins d’un boid. (On passe d’une complexité moyenne en O(n²) à une
+complexité en O(n.log(n)) )
+
+\medbreak
+Un arbre quaternaire \textbf{A} est défini récursivement. Chaque noeud stocke les données suivantes :
+\begin{itemize}
+    \item Frontière \textbf{f} (rectangulaire) du plan à laquelle il est associé. Elle est définie par le 4-uplet (x, y, w, h) où  (x,y) sont les coordonnées du centre du rectangle, (w,h) sa largeur et sa hauteur.
+    \item Référence vers ses 4 fils \textbf{(nw, ne, sw, se)} s’ils sont définis
+    \item Liste \textbf{L} des boids qui se trouvent dans la région associée au noeud
+    \item Capacité \textbf{c} : nombre maximum d’boids au-delà duquel on définit les 4 fils du noeud (subdivision de la région associée en 4 sous-régions)
+\end{itemize}
+
+
+A chaque actualisation, les n boids (et leur position) sont stockés dans L.
+L’arbre A est recréé à chaque fois et on y insère chaque boid.
+Il faut itérer deux fois sur l’intégralité des boids : une première fois pour tous les
+insérer dans l’arbre et la deuxième pour identifier le voisinnage de chaque boid.
+
+
+\begin{algorithm}[H]
+    \caption{Actualisation à chaque raffraichissement}
+    \begin{algorithmic}
+
+        \FORALL{boids b}
+        \STATE A.insérer(b)
+        \ENDFOR
+
+        \medbreak
+
+        \FORALL{boids b}
+        \STATE définir une zone de recherche r centrée sur b
+        \STATE A.requête(r,null)
+        \ENDFOR
+    \end{algorithmic}
+\end{algorithm}
+\begin{algorithm}[H]
+    \caption{insérer(b)}
+    \begin{algorithmic}
+
+        \STATE divisé $\leftarrow$ faux
+        \IF{f ne contient pas b}
+        \RETURN \FALSE
+        \ENDIF
+
+        \medbreak
+
+        \IF{L.taille $\leq$ c}
+        \STATE L.ajouter(b)
+        \RETURN \TRUE
+        \ELSIF{A.divisé = faux}
+        \STATE subdiviser()
+        \ENDIF
+
+        \medbreak
+
+        \RETURN ne.insérer(b) ou nw.insérer(b) ou se.insérer(b) ou sw.insérer(b)
+    \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+    \caption{subdiviser()}
+    \begin{algorithmic}
+
+        \STATE $ne \leftarrow nouvel arbre((x+w/2, y-w/2, w/2, h/2), c)$
+        \STATE $nw \leftarrow nouvel arbre((x-w/2, y-w/2, w/2, h/2), c)$
+        \STATE $se \leftarrow nouvel arbre((x+w/2, y+w/2, w/2, h/2), c)$
+        \STATE $sw \leftarrow nouvel arbre((x-w/2, y+w/2, w/2, h/2), c)$
+        \STATE divisé $\leftarrow$ vrai
+    \end{algorithmic}
+\end{algorithm}
+
+
+\begin{algorithm}[H]
+    \caption{requête(r, T)}
+    \begin{algorithmic}
+
+        \IF{T est nulle}
+        \STATE initialiser T comme une liste de boids vide
+        \ENDIF
+
+        \medbreak
+
+        \IF{f n'intersecte pas r}
+        \RETURN T
+        \ENDIF
+
+        \medbreak
+
+        \FORALL{boids $\in$ L}
+        \STATE ne.requête(r,t)
+        \STATE nw.requête(r,t)
+        \STATE se.requête(r,t)
+        \STATE sw.requête(r,t)
+        \ENDFOR
+
+        \medbreak
+
+        \RETURN T
+    \end{algorithmic}
+\end{algorithm}
+
+\section{Forces subies par les boids}
+
+On suppose que chaque boid connaît ses voisins grâce à la méthode décrite plus haut.
+Pour un boid, on définit donc la liste \textbf{V} de ses voisins. Les fonctions suivantes sont définies dans class boid.
+\textbf{self} désigne l’instance de boid dans laquelle les fonctions suivantes sont définies.
+
+\begin{algorithm}[H]
+    \caption{Force de cohésion}
+    \begin{algorithmic}
+        \REQUIRE{Liste V des voisins du boid considéré}
+        \STATE position\_désirée $\leftarrow$ Vecteur(0,0)
+        \STATE force $\leftarrow$ Vecteur(0,0)
+        \STATE diff\_angle $\leftarrow$ 0
+
+        \medbreak
+
+        \FORALL{boids b $\in$ V}
+        \STATE écart\_position $\leftarrow$ b.position - self.position
+        \STATE diff\_angle $\leftarrow$ angle entre position\_désirée et self.vitesse
+        \IF{diff\_angle $\leq$ self.angle\_de\_vue}
+        \STATE position\_désirée $\leftarrow$ position\_désirée + b.position
+        \ENDIF
+        \ENDFOR
+
+
+        \medbreak
+
+        \IF{V.taille $\ge$ 0}
+        \STATE position\_désirée $\leftarrow$ position\_désirée / V.taille
+        \STATE position\_désirée $\leftarrow$ position\_désirée - self.position
+        \STATE position\_désirée.norme $\leftarrow$ self.vitesse\_max
+        \STATE force $\leftarrow$ position\_désirée - self.vitesse
+        \STATE force.norme\_maximale $\leftarrow$ self.force\_max
+
+        \ENDIF
+
+        \medbreak
+
+        \RETURN force
+
+
+    \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+    \caption{Force de séparation}
+    \begin{algorithmic}
+        \REQUIRE{Liste V des voisins du boid considéré}
+        \STATE position\_désirée $\leftarrow$ Vecteur(0,0)
+        \STATE force $\leftarrow$ Vecteur(0,0)
+        \STATE diff\_angle $\leftarrow$ 0
+        \STATE diff $\leftarrow$ 0
+
+        \medbreak
+
+        \FORALL{boids b $\in$ V}
+        \STATE écart\_position $\leftarrow$ b.position - self.position
+        \STATE diff\_angle $\leftarrow$ angle entre position\_désirée et self.vitesse
+        \IF{diff\_angle $\leq$ self.angle\_de\_vue}
+        \STATE diff $\leftarrow$ self.position - b.position
+        \STATE diff.normaliser()
+        \STATE position\_désirée $\leftarrow$ position\_désirée + diff
+        \ENDIF
+        \ENDFOR
+
+
+        \medbreak
+
+        \IF{V.taille $\ge$ 0}
+        \STATE position\_désirée $\leftarrow$ position\_désirée / V.taille
+        \STATE position\_désirée.norme $\leftarrow$ self.vitesse\_max
+        \STATE force $\leftarrow$ position\_désirée - self.vitesse
+        \STATE force.norme\_maximale $\leftarrow$ self.force\_max
+
+        \ENDIF
+
+        \medbreak
+        \RETURN force
+
+
+    \end{algorithmic}
+\end{algorithm}
+
+
+\begin{algorithm}[H]
+    \caption{Force d'alignement}
+    \begin{algorithmic}
+        \REQUIRE{Liste V des voisins du boid considéré}
+        \STATE vitesse\_désirée $\leftarrow$ Vecteur(0,0)
+        \STATE force $\leftarrow$ Vecteur(0,0)
+        \STATE diff\_angle $\leftarrow$ 0
+
+        \medbreak
+
+        \FORALL{boids b $\in$ V}
+        \STATE écart\_position $\leftarrow$ b.position - self.position
+        \STATE diff\_angle $\leftarrow$ angle entre position\_désirée et self.vitesse
+        \IF{diff\_angle $\leq$ self.angle\_de\_vue}
+        \STATE vitesse\_désirée $\leftarrow$ vitesse\_désirée + b.vitesse
+        \ENDIF
+        \ENDFOR
+
+
+        \medbreak
+
+        \IF{V.taille $\ge$ 0}
+        \STATE vitesse\_désirée $\leftarrow$ vitesse\_désirée / V.taille
+        \STATE vitesse\_désirée.norme $\leftarrow$ self.vitesse\_max
+        \STATE force $\leftarrow$ position\_désirée - self.vitesse
+        \STATE force.norme\_maximale $\leftarrow$ self.force\_max
+
+        \ENDIF
+
+        \medbreak
+        \RETURN force
+
+
+    \end{algorithmic}
+\end{algorithm}
+
+Pour calculer la force d'évitement d'obstacles, le boid cherche la première direction dans laquelle il n'y a plus d'obstacle. Pour cela il balaye son champ de vision sur un nombre déterminé de directions (\textbf{nombre\_points}). Le \textbf{facteur d'anticipation} permet de faire varier la distance à partir de laquelle un boid modifie sa trajectoire.
+\begin{algorithm}[H]
+    \caption{Force d'évitement d'obstacle}
+    \begin{algorithmic}
+        \REQUIRE{Liste O des obstacles du terrain, liste V des boids, facteur\_anticipation, nombre\_points}
+        \STATE vitesse\_évitement\_désirée $\leftarrow$ Vecteur(0, 0)
+        \STATE champ\_vision\_orienté $\leftarrow$ Vecteur(0, 0)
+        \STATE force $\leftarrow$ Vecteur(0, 0)
+        \STATE obstacles\_voisins $\leftarrow$ 0
+        \medbreak
+        \STATE \COMMENT{Paramètres angulaires}
+        pas $\leftarrow$ 1/nombre\_points
+        theta $\leftarrow$ 0
+
+        \medbreak
+        \FORALL{obstacle $\in$ O}
+        \WHILE{d $\leq$ facteur\_anticipation $\times$ obstacle.rayon}
+        \STATE theta $\leftarrow 2 \times \pi \times pas + 1$
+        \STATE champ\_vision\_orienté $\leftarrow$ self.position + self.vitesse.rotation(theta).norme(obstacle.rayon)
+        \STATE d $\leftarrow$ distance(champe\_vision\_orienté, obstacle.position)
+        \IF{i $\leq$ 0}
+        \STATE i $\leftarrow$ -i+1
+        \ELSE
+        \STATE i $\leftarrow$ -i
+        \ENDIF
+        \ENDWHILE
+        \ENDFOR
+
+        \medbreak
+
+        \IF{theta $\neq$ 0}
+        \STATE vitesse\_évitement\_désirée $\leftarrow$ vitesse\_évitement\_désirée + self.vitesse.rotation(theta)
+        \STATE obstacles\_voisins $\leftarrow$ obstacles\_voisins + 1
+        \ENDIF
+        \medbreak
+        \STATE i $\leftarrow$ 0
+        \STATE theta $\leftarrow$ 0
+        \medbreak
+        \IF{obstacles\_voisins $\geq$ 1}
+        \STATE vitesse\_évitement\_désirée $\leftarrow$ vitesse\_évitement\_désirée / obstacles\_voisins
+        \STATE vitesse\_évitement\_désirée.norme $\leftarrow$ self.vitesse\_max
+        \STATE force $\leftarrow$  vitesse\_évitement\_désirée - self.vitesse
+        \STATE force.norme\_maximale $\leftarrow$ self.force\_max
+        \ENDIF
+
+        \medbreak
+
+        \RETURN force
+
+    \end{algorithmic}
+\end{algorithm}
+
+
+\section{Détection des groupes}
+
+En entrée, on prend boids la liste de tous les boids (n = nombre de boids) et groups
+la liste de tous les groupes. L’idée de l’algorithme est la suivante : A chaque itération de
+draw(), il y a une phase d'initialisation où on ne garde qu’un boid par groupe. Ensuite,
+on détermine pour chaque boid la liste de ses voisins (seuil de distance et/ou d'angle de
+vitesse). Puis on répartit les boids non-leader dans les groupes déjà existants et on en
+crée de nouveau si besoin. Enfin, on traite un cas particulier du à la phase d'initiation
+(boid avec plusieurs voisins mais seul dans leur groupe).
+L’algorithme a une complexité moyenne en O(n²).
+
+\begin{algorithm}[H]
+    \caption{Initialisation de groupes}
+    \begin{algorithmic}
+        \REQUIRE{Liste G des groupes}
+        \FORALL{groupe $\in$ G}
+        \STATE ne garder que le premier boid (leader) du groupe
+        \STATE attribuer à tous les autres boids le groupe 0
+        \ENDFOR
+
+    \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+    \caption{Détermination des voisins}
+    \begin{algorithmic}
+        \REQUIRE{Liste V des boids}
+        \FORALL{boid b $in$ V}
+        \STATE liste des voisins $\leftarrow$ liste vide
+        \STATE nombre total de voisins $\leftarrow$ 0
+        \FORALL{boid autre $\in$ V}
+        \IF{autre est assez loin du bord}
+        \IF{distance(b, autre) $\leq$ seuil et b $\neq$ autre et angle(b.vitesse, autre.vitesse) $\leq$ seuil}
+        \STATE liste des voisins.ajouter(b)
+        \STATE nombre total de voisins $\leftarrow$ nombre total de voisins + 1
+        \ENDIF
+        \ELSE
+        \IF{distance(b, autre) $\leq$ seuil et b $\neq$ 0}
+        \STATE liste des voisins.ajouter(b)
+        \STATE nombre total de voisins $\leftarrow$ nombre total de voisins + 1
+        \ENDIF
+        \ENDIF
+        \ENDFOR
+        \ENDFOR
+
+    \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+    \caption{Formation des groupes}
+    \begin{algorithmic}
+        \REQUIRE{List V des boids, liste G des groupes}
+        \STATE id\_group $\leftarrow$ prochain identifiant disponible \COMMENT{max des id dans G + 1}
+        \FORALL{boid b $\in$ V}
+        \medbreak
+        \IF{b.groupe.id = 0}
+        \IF{b n'a pas de voisin}
+        \STATE Créer un nouveau groupe grp dans G avec l'id id\_group
+        \STATE Ajouter b dans grp
+        \STATE id\_group $\leftarrow$ id\_group + 1
+        \ENDIF
+        \medbreak
+        \STATE midID $\leftarrow$ 0
+        \STATE res $\leftarrow$ [0] \COMMENT{Liste des id des groupes des voisins de b}
+        \medbreak
+        \FORALL{boid autre $\in$ liste des voisins de b}
+        \IF{autre.id n'est pas dans res}
+        \STATE Ajouter autre à res
+        \ENDIF
+        \STATE midID $\leftarrow$ min(res)
+        \ENDFOR
+        \medbreak
+        \IF{midID = 0}
+        \STATE On crée un nouveau groupe group dans groups avec l’id id\_group, et on ajoute boid dans ce groupe
+        \FORALL{voisin de b}
+        \STATE group.ajouter(voisin)
+        \ENDFOR
+        \ENDIF
+        \medbreak
+        \IF{midID $\geq$ 1}
+        \STATE finalID $\leftarrow$ élément de res privée de 0 qui correspond au group avec le plus de boids
+        \STATE On prend le groupe avec l’id finalID (déjà existant), et on y ajoute boid
+        \medbreak
+        \FORALL{autres éléments de res privé de 0}
+        \STATE On enlève le groupe de group
+        \STATE ON prend le groupe avec l'id finalID, et on y ajoute chaque membre des groupes ayant un voisin de b
+        \ENDFOR
+        \ENDIF
+        \ENDIF
+        \ENDFOR
+    \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+    \caption{Cas particulier}
+    \begin{algorithmic}
+        \REQUIRE{Liste G des groupes}
+        \FOR{i allant de 0 à G.taille}
+        \medbreak
+        \IF{G[i] n'a qu'un seul boid b}
+        \IF{b a plusieurs voisins}
+        \STATE Enlever group de G et ajouter b au groupe du premier voisin qu'on a trouvé
+        \ENDIF
+        \ENDIF
+        \ENDFOR
+        \STATE
+    \end{algorithmic}
+\end{algorithm}
+
+
+
+\section{Enveloppe convexe}
+
+\begin{algorithm}[H]
+    \caption{Algorithme de Jarvis}
+    \begin{algorithmic}
+        \REQUIRE{Liste V des boids}
+        \STATE q $\leftarrow$ premier boid de la liste
+        \medbreak
+        \FORALL{boib b $\in$ V et qui n'est pas le premier}
+        \IF{b.y $\leq$ q.y}
+        \STATE q $\leftarrow$ v
+        \ENDIF
+        \ENDFOR
+        \medbreak
+        \STATE u $\leftarrow$ q
+        \STATE p $\leftarrow$ q
+        \medbreak
+        \WHILE{p $\neq$ u}
+        \STATE q $\leftarrow$ premier point de V
+        \medbreak
+        \FORALL{v $\in$ v après q}
+        \medbreak
+        \IF{pvq tourne dans le sens contraire des aiguilles d'une montre}
+        \STATE q $\leftarrow$ v
+        \ENDIF
+        \ENDFOR
+        \medbreak
+        \STATE p.suivant $\leftarrow$ q
+        \ENDWHILE
+
+    \end{algorithmic}
+\end{algorithm}
+
+\section{Prédiction de trajectoire}
+
+Le but est de calculer une estimation de la trajectoire du barycentre d’un groupe de boids.
+
+On dispose d’un objet ayant les attributs suivants :
+\begin{itemize}
+    \item La position courante du barycentre du groupe \textbf{position\_barycentre\_courante},
+          Une liste de positions estimées \textbf{trajectoires\_prédites}, initialisée avec des vecteurs nuls.
+          Une liste de vitesses estimées textbf{vitesses\_prédites}, initialisée avec des vecteurs nuls
+
+    \item Trois tableaux de vecteurs : \textbf{position\_pred}, \textbf{vitesse\_prec}, \textbf{accélération\_prec}, de même taille, initialisés avec des vecteurs nuls. Plus l’indice dans le tableau est grand, plus le vecteur associé désigne un pas de temps récent.
+
+    \item Un booléen \textbf{est\_plein} qui permet de vérifier si ces tableaux ont bien été remplis une fois. Vaut False initialement.
+
+    \item Un booléen \textbf{erreur\_trop\_haute} pour décider de quand recalculer la trajectoire en fonction de l’erreur. Vaut False initialement.
+
+    \item Un entier \textbf{erreur\_max} pour quantifier l’erreur tolérée.
+
+    \item Un entier \textbf{nombre\_données\_prédites} qui donne la taille de la fenêtre de prédiction.
+
+    \item Un entier \textbf{positions\_prédites\_passées} qui permet de compter le nombre de données prédites exploitées par le processus. Elle permet de recalculer la trajectoire prédite lorsque tous les pas de temps pour lesquels la position a été prédite sont écoulés. Elle est initialisée à \textbf{nombre\_données\_prédites - 1}
+
+\end{itemize}
+
+V désigne une liste de vecteurs
+
+\begin{algorithm}[H]
+    \caption{Calcul du vecteur moyen}
+    \begin{algorithmic}
+        \REQUIRE{Liste V de vecteurs}
+        \STATE vecteur\_moyen $\leftarrow$ Vecteur(0, 0)
+        \medbreak
+        \FORALL{vecteur v $\in$ V}
+        \STATE vecteur\_moyen $\leftarrow$ vecteur\_moyen + v
+        \ENDFOR
+
+        \medbreak
+
+        \STATE vecteur\_moyen $\leftarrow$ vecteur\_moyen / V.taille
+        \medbreak
+        \RETURN vecteur\_moyen
+
+    \end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+    \caption{Estimation de l'erreur de position : valeur\_erreur()}
+    \begin{algorithmic}
+
+        \STATE erreur $\leftarrow$ min(distance(position\_barycentre\_courante, position\_prédite))
+        \RETURN erreur
+
+    \end{algorithmic}
+\end{algorithm}
+
+L'algorithme permet de mettre à jour les valeurs des positions passées du barycentre du groupe, qui serviront à calculer les vecteurs accélération et vitesse moyen pour appliquer le modèle de la chute libre (voir la présentation du projet pour plus de détails).
+\begin{algorithm}[H]
+    \caption{Mise à jour des valeurs précédentes : maj\_valeurs\_précédentes()}
+    \begin{algorithmic}
+
+        \STATE On translate les valeurs des tableaux position\_prec, vitesse\_prec et acceleration\_prec d'un indice vers la gauche
+        \STATE Pour le plus grand indice on prend :
+        \begin{itemize}
+            \item Pour position\_prec : position\_barycentre\_courante
+            \item Pour vitesse\_prec : différence entre la  position au plus grand indice (qui vient d’être calculée)  et celle à l’indice précédent.
+            \item Pour acceleration\_prec : différence entre la vitesse au plus grand indice et celle à l’indice précédent
+        \end{itemize}
+
+        \STATE Si la fonction est exécutée au moins autant de fois que la taille des trois tableaux ci-dessus, alors est\_plein $\leftarrow$ Vrai
+
+
+    \end{algorithmic}
+\end{algorithm}
+
+
+
+\begin{algorithm}[H]
+    \caption{Calcul de la trajectoire}
+    \begin{algorithmic}
+
+        \STATE maj\_valeurs\_précédentes()
+        \medbreak
+        \IF{est\_plein}
+        \medbreak
+        \IF{prositions\_prédites\_passées = nombre\_données\_prédites -1 ou erreur\_trop\_haute}
+        \STATE erreur\_trop\_haute $\leftarrow$ Faux
+        \STATE positions\_prédites\_passée $\leftarrow$ 0
+        \STATE accélération\_moyenne $\leftarrow$ vecteurMoyen(accélérations\_prec)
+        \medbreak
+        \FOR{i allant de 0 à nombre\_données\_précédentes}
+        \STATE vitesses\_prédites[i] $\leftarrow$ vecteurMoyen(vitesse\_prec) + accélération\_moyenne $\times$ i
+        \STATE trajectoire\_prédites[i] $\leftarrow$ 0.5 $\times$ i² $\times$ accélération\_moyenne + vecteurMoyen(vitesse\_prec) $\times$ i + position\_barycentre\_courante
+
+        \ENDFOR
+        \medbreak
+        \ELSE
+
+        \STATE position\_prédites\_passées $\leftarrow$ positions\_prédites\_passées + 1
+        \ENDIF
+        \medbreak
+        \IF{valeur\_erreur() $\geq$ erreur\_max + 1}
+        \STATE erreur\_trop\_haute $\leftarrow$ Vrai
+        \ENDIF
+        \ENDIF
+
+    \end{algorithmic}
+\end{algorithm}
+
+\end{document}
