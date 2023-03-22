@@ -49,7 +49,7 @@
 
 2. Ouvrir le projet avec l'IDE processing ou vscode (Dans ce cas le chemin d'accès à l'IDE Processing doit être renseigné dans les variables d'environnement)
 
-**ATTENTION ! Il faut que le dossier dans lequel se trouve le projet soit renommé "mst_cm" (nom de la classe d'exécution) et que le chemin d'accès ne comporte pas de dossier dont le nom est composé d'espaces.**
+**ATTENTION ! Il faut que le dossier dans lequel se trouve le projet soit renommé "mst_cm" (nom de la classe d'exécution) et que le chemin d'accès ne comporte pas de dossier dont le nom est composé d'esapces.**
 
 3. S'assurer que les librairies Python `matplotlib, sympy, numpy, csv` sont installées. Exécuter les commandes suivantes dans un invite de commande si ce n'est pas le cas.
 ```sh
