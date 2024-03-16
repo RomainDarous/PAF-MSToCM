@@ -1,3 +1,0 @@
-interface IDrawable {
-    void show();
-}
